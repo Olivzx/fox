@@ -36,7 +36,7 @@ Não existe senha administrativa fixa no código.
 
 ## Supabase já conectado
 
-O projeto `xotsezpsvtmofrmtfflq` já possui as tabelas `products`, `categories`, `marketplaces`, `recommendations`, `banners`, `admin_profiles` e `click_events`, com RLS ativo.
+O projeto já possui as tabelas `products`, `categories`, `marketplaces`, `recommendations`, `banners`, `admin_profiles` e `click_events`, com RLS ativo.
 
 A configuração pública do frontend usa somente a URL do projeto e a publishable key. Nunca coloque `service_role` ou qualquer secret key no navegador.
 
