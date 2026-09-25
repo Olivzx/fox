@@ -1,0 +1,1 @@
+const adminObserver=new MutationObserver(()=>{if(typeof bindProductTable==='function'&&document.querySelector('#productTable'))bindProductTable();});adminObserver.observe(document.querySelector('#adminApp'),{childList:true,subtree:true});
