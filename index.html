@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d12">
+  <meta name="description" content="Fox Shoopey — Tudo que você precisa aqui com desconto.">
+  <title>Fox Shoopey — Tudo que você precisa aqui com desconto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="noise"></div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <header class="site-header">
+    <div class="topbar container">
+      <a class="brand" href="#home" aria-label="Fox Shoopey início"><div class="brand-mark">🦊</div><div><div class="brand-name">Fox <span>Shoopey</span></div><div class="brand-tagline">Tudo que você precisa aqui com desconto</div></div></a>
+      <div class="search-shell"><input id="globalSearch" type="search" placeholder="O que você está procurando?" aria-label="Pesquisar produtos"><button class="icon-button orange" id="searchBtn" title="Pesquisar">⌕</button></div>
+      <div class="header-actions"><button class="header-link" id="favoritesBtn"><span>♡</span><small>Favoritos</small></button><button class="header-link" id="accountBtn"><span>?</span><small>Ajuda</small></button><button class="theme-toggle" id="themeToggle" type="button" title="Tema"><span>◐</span><small>Auto</small></button></div>
+    </div>
+    <nav class="navrow"><div class="container nav-inner"><button class="category-trigger" id="categoryTrigger">☰ &nbsp; Todas as Categorias <span>⌄</span></button><a href="#home" class="nav-item active">Início</a><a href="#ofertas" class="nav-item">Ofertas do Dia</a><a href="#ofertas" class="nav-item">Mais Vendidos</a><a href="#ofertas" class="nav-item">Novidades</a><a href="#como-funciona" class="nav-item">Como Funciona</a><a href="#contato" class="nav-item">Fale Conosco</a></div></nav>
+    <div class="category-menu" id="categoryMenu"></div>
+  </header>
+  <main id="app" class="container"><section class="section"><div class="empty">Carregando ofertas...</div></section></main>
+  <footer class="site-footer"><div class="container footer-grid"><div><div class="brand compact"><div class="brand-mark">🦊</div><div><div class="brand-name">Fox <span>Shoopey</span></div><div class="brand-tagline">Tudo que você precisa aqui com desconto</div></div></div><p>Ofertas, achados e recomendações em um só lugar. Você escolhe onde comprar.</p></div><div><h4>Fox Shoopey</h4><a href="#como-funciona">Como funciona</a><a href="#contato">Fale conosco</a></div><div><h4>Lojas parceiras</h4><a href="#ofertas">Shopee</a><a href="#ofertas">Mercado Livre</a><a href="#ofertas">Amazon</a><a href="#ofertas">AliExpress</a></div><div><h4>Transparência</h4><p class="muted">Alguns links podem ser links de afiliado. O preço final é definido pela loja parceira.</p></div></div><div class="container footer-bottom"><span>© 2026 Fox Shoopey</span><span>Feito para mobile e desktop.</span></div></footer>
+  <nav class="mobile-nav"><a href="#home" class="mobile-nav-item active">⌂<span>Início</span></a><a href="#categorias" class="mobile-nav-item">▦<span>Categorias</span></a><button class="mobile-nav-item" id="mobileFav" type="button">♡<span>Favoritos</span></button><button class="mobile-nav-item" id="mobileAccount" type="button">?<span>Ajuda</span></button><button class="mobile-nav-item" id="mobileTheme" type="button">◐<span>Tema</span></button></nav>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
