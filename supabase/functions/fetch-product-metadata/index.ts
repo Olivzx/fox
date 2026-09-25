@@ -9,6 +9,7 @@ const cors = {
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
+const supabaseServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 function clean(v: string | null | undefined) {
   return (v || "").replace(/\s+/g, " ").trim();
@@ -27,16 +28,10 @@ function parse(html: string, pageUrl: string) {
     meta(html, /property=["']og:title["'][^>]*content=["']([^"']*)["']/i) ||
     meta(html, /name=["']twitter:title["'][^>]*content=["']([^"']*)["']/i) ||
     clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]);
-
   const image =
     meta(html, /property=["']og:image(?::secure_url)?["'][^>]*content=["']([^"']*)["']/i) ||
     meta(html, /name=["']twitter:image["'][^>]*content=["']([^"']*)["']/i);
-
-  const description = meta(
-    html,
-    /(?:name|property)=["'](?:description|og:description)["'][^>]*content=["']([^"']*)["']/i,
-  );
-
+  const description = meta(html, /(?:name|property)=["'](?:description|og:description)["'][^>]*content=["']([^"']*)["']/i);
   const price = meta(html, /property=["']product:price:amount["'][^>]*content=["']([^"']*)["']/i);
   const currency = meta(html, /property=["']product:price:currency["'][^>]*content=["']([^"']*)["']/i);
 
@@ -66,15 +61,20 @@ Deno.serve(async (req) => {
     const token = auth.replace(/^Bearer\s+/i, "");
     if (!token) throw new Error("Sessão não encontrada.");
 
-    const userClient = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
+    // Validate the caller JWT first. The service key is used only server-side,
+    // after authentication, and is never sent to the browser.
+    const authClient = createClient(supabaseUrl, supabaseAnon, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-
-    const { data: { user }, error: userErr } = await userClient.auth.getUser(token);
+    const { data: { user }, error: userErr } = await authClient.auth.getUser(token);
     if (userErr || !user) throw new Error("Sessão inválida.");
 
-    const { data: admin, error: adminErr } = await userClient
+    // Server-side admin lookup avoids depending on public RLS policies for the
+    // authorization check while keeping the service role completely private.
+    const adminClient = createClient(supabaseUrl, supabaseServiceRole, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: admin, error: adminErr } = await adminClient
       .from("admin_profiles")
       .select("role")
       .eq("user_id", user.id)
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
 
     const res = await fetch(parsed.href, {
       redirect: "follow",
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; FoxShoopeyMetadata/1.1)" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; FoxShoopeyMetadata/1.2)" },
     });
     if (!res.ok) throw new Error(`A loja respondeu HTTP ${res.status}`);
 
