@@ -1,24 +1,74 @@
 /* Fox Shoopey motion + interaction layer */
 .hero-art{isolation:isolate;transform:translate3d(var(--mx,0),var(--my,0),0);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
-.ambient-icons{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:visible}
-.ambient-icons i{position:absolute!important;width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.18);box-shadow:0 14px 32px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.12);font-style:normal;font-size:21px;will-change:transform;animation:foxIconDrift 6.8s linear infinite;animation-delay:calc(var(--i) * -.82s);animation-play-state:running}
-.ambient-icons i::after{content:"";position:absolute;inset:-5px;border-radius:18px;border:1px solid rgba(255,122,0,.08);opacity:.8;will-change:transform,opacity;animation:iconGlow 2.8s ease-in-out infinite alternate;animation-delay:calc(var(--i) * -.35s)}
-.ambient-icons i:nth-child(1){top:9%;left:8%;animation-duration:7.1s}.ambient-icons i:nth-child(2){top:18%;right:9%;animation-duration:8.2s}.ambient-icons i:nth-child(3){top:43%;left:20%;animation-duration:6.4s}.ambient-icons i:nth-child(4){top:34%;right:26%;animation-duration:7.7s}.ambient-icons i:nth-child(5){bottom:20%;left:8%;animation-duration:6.9s}.ambient-icons i:nth-child(6){bottom:13%;right:12%;animation-duration:8.4s}.ambient-icons i:nth-child(7){bottom:34%;right:38%;animation-duration:6.6s}.ambient-icons i:nth-child(8){top:55%;left:48%;animation-duration:7.9s}
+.ambient-icons{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:visible}
 
-/* Continuous movement: there is no rest point in the loop. Each icon drifts, rotates and gently changes scale before seamlessly returning to its start. */
-@keyframes foxIconDrift{
-  0%{transform:translate3d(0,0,0) rotate(-4deg) scale(.98)}
-  12.5%{transform:translate3d(7px,-9px,0) rotate(1deg) scale(1.01)}
-  25%{transform:translate3d(2px,-18px,0) rotate(5deg) scale(1.035)}
-  37.5%{transform:translate3d(-8px,-11px,0) rotate(1deg) scale(1.01)}
-  50%{transform:translate3d(-10px,1px,0) rotate(-5deg) scale(.985)}
-  62.5%{transform:translate3d(-3px,10px,0) rotate(-1deg) scale(1.015)}
-  75%{transform:translate3d(9px,5px,0) rotate(5deg) scale(1.035)}
-  87.5%{transform:translate3d(6px,-5px,0) rotate(1deg) scale(1.01)}
-  100%{transform:translate3d(0,0,0) rotate(-4deg) scale(.98)}
+/* Floating icons: continuous, independent motion with no pause between loops. */
+.ambient-icons i{
+  position:absolute!important;
+  width:48px;
+  height:48px;
+  display:grid;
+  place-items:center;
+  border-radius:15px;
+  background:linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.035));
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 14px 32px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.12);
+  font-style:normal;
+  font-size:21px;
+  will-change:transform;
+  transform-origin:center;
+  animation-name:foxIconFloat;
+  animation-timing-function:ease-in-out;
+  animation-iteration-count:infinite;
+  animation-direction:alternate;
+  animation-play-state:running;
 }
-@keyframes iconGlow{from{transform:scale(.94);opacity:.35}to{transform:scale(1.08);opacity:.85}}
-.fox{z-index:2;animation:foxBob 3.8s ease-in-out infinite!important;will-change:transform}.fox-glow{filter:drop-shadow(0 0 30px rgba(255,106,0,.55))}
+
+.ambient-icons i::after{
+  content:"";
+  position:absolute;
+  inset:-5px;
+  border-radius:18px;
+  border:1px solid rgba(255,122,0,.10);
+  opacity:.55;
+  pointer-events:none;
+  animation:iconGlow 2.8s ease-in-out infinite alternate;
+}
+
+/* Preserve the composition from the hero artwork while giving every icon its own rhythm. */
+.ambient-icons i:nth-child(1){top:9%;left:8%;animation-duration:6.4s;animation-delay:-1.1s}
+.ambient-icons i:nth-child(2){top:18%;right:9%;animation-duration:7.3s;animation-delay:-3.2s}
+.ambient-icons i:nth-child(3){top:43%;left:20%;animation-duration:5.8s;animation-delay:-2.4s}
+.ambient-icons i:nth-child(4){top:34%;right:26%;animation-duration:6.9s;animation-delay:-4.1s}
+.ambient-icons i:nth-child(5){bottom:20%;left:8%;animation-duration:6.1s;animation-delay:-.7s}
+.ambient-icons i:nth-child(6){bottom:13%;right:12%;animation-duration:7.6s;animation-delay:-2.8s}
+.ambient-icons i:nth-child(7){bottom:34%;right:38%;animation-duration:5.9s;animation-delay:-3.7s}
+.ambient-icons i:nth-child(8){top:55%;left:48%;animation-duration:7.1s;animation-delay:-1.9s}
+
+@keyframes foxIconFloat{
+  0%{transform:translate3d(-4px,5px,0) rotate(-3deg) scale(.985)}
+  25%{transform:translate3d(7px,-9px,0) rotate(2deg) scale(1.015)}
+  50%{transform:translate3d(-2px,-17px,0) rotate(-1deg) scale(1.035)}
+  75%{transform:translate3d(-9px,-5px,0) rotate(3deg) scale(1.01)}
+  100%{transform:translate3d(4px,8px,0) rotate(-2deg) scale(.99)}
+}
+
+@keyframes iconGlow{
+  from{transform:scale(.94);opacity:.30}
+  to{transform:scale(1.10);opacity:.82}
+}
+
+.fox{z-index:2;animation:foxBob 3.8s ease-in-out infinite!important;will-change:transform}
+.fox-glow{filter:drop-shadow(0 0 30px rgba(255,106,0,.55))}
 @keyframes foxBob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-11px) scale(1.035)}}
-@media(max-width:680px){.ambient-icons i{width:38px;height:38px;font-size:16px}.hero-art{opacity:1}.ambient-icons i:nth-child(4),.ambient-icons i:nth-child(7){display:none}}
-@media(prefers-reduced-motion:reduce){.ambient-icons i,.ambient-icons i::after,.fox{animation:none!important}.hero-art{transform:none!important;transition:none}}
+
+@media(max-width:680px){
+  .ambient-icons i{width:38px;height:38px;font-size:16px}
+  .hero-art{opacity:1}
+  .ambient-icons i:nth-child(4),.ambient-icons i:nth-child(7){display:none}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .ambient-icons i,.ambient-icons i::after,.fox{animation:none!important}
+  .hero-art{transform:none!important;transition:none}
+}
