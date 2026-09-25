@@ -1,0 +1,10 @@
+/* Fox Shoopey motion + interaction layer */
+.hero-art{isolation:isolate;transform:translate(var(--mx,0),var(--my,0));}
+.ambient-icons{position:absolute;inset:0;pointer-events:none;z-index:1;}
+.ambient-icons i{position:absolute!important;width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);box-shadow:0 12px 30px rgba(0,0,0,.18);font-style:normal;font-size:20px;animation:foxFloat 4.8s ease-in-out infinite;animation-delay:calc(var(--i) * -0.6s);}
+.ambient-icons i:nth-child(1){top:10%;left:8%}.ambient-icons i:nth-child(2){top:18%;right:9%}.ambient-icons i:nth-child(3){top:42%;left:20%}.ambient-icons i:nth-child(4){top:34%;right:26%}.ambient-icons i:nth-child(5){bottom:20%;left:8%}.ambient-icons i:nth-child(6){bottom:13%;right:12%}.ambient-icons i:nth-child(7){bottom:34%;right:38%}.ambient-icons i:nth-child(8){top:55%;left:48%}
+@keyframes foxFloat{0%,100%{transform:translate3d(0,0,0) rotate(-2deg)}50%{transform:translate3d(0,-18px,0) rotate(5deg)}}
+.fox{z-index:2;animation:foxBob 3.4s ease-in-out infinite!important}.fox-glow{filter:drop-shadow(0 0 30px rgba(255,106,0,.55))}
+@keyframes foxBob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-10px) scale(1.03)}}
+@media(max-width:680px){.ambient-icons i{width:38px;height:38px;font-size:16px}.hero-art{opacity:1}}
+@media(prefers-reduced-motion:reduce){.ambient-icons i,.fox{animation:none!important}.hero-art{transform:none!important}}
