@@ -26,7 +26,21 @@ function usableImage(v:string|null|undefined){
   return /^https?:\/\//i.test(s) && !/logo|favicon|sprite|placeholder|avatar/i.test(s);
 }
 
-function extractShopeeIds(url:string){
+
+function usableShopeeTitle(value:string|null|undefined){
+  const s=clean(value);
+  if(!usableName(s)) return false;
+  if(/shopee brasil|ofertas incríveis|melhores preços do mercado|compras on-line shopee|garantia shopee|ofertas relâmpago/i.test(s)) return false;
+  return true;
+}
+function usableShopeeImage(value:string|null|undefined){
+  const s=clean(value);
+  if(!usableImage(s)) return false;
+  if(/deo\.shopeemobile\.com\/shopee\/shopee-mobile/i.test(s)) return false;
+  if(/\/shopee\/shopee-mobile/i.test(s)) return false;
+  return true;
+}
+\nfunction extractShopeeIds(url:string){
  const u=new URL(url);let m=u.pathname.match(/\/product\/(\d+)\/(\d+)/i);
  if(m)return{shopId:m[1],itemId:m[2]};
  m=u.pathname.match(/-i\.(\d+)\.(\d+)(?:\/|$)/i);if(m)return{shopId:m[1],itemId:m[2]};
@@ -66,7 +80,9 @@ async function fetchShopeePublicApi(url:string){
   const base=new URL(url);const origin=base.origin;
   const headers={"User-Agent":"Mozilla/5.0","Accept":"application/json,text/plain,*/*","Accept-Language":"pt-BR,pt;q=0.9,en;q=0.8","Referer":origin+"/"};
   const endpoints=[
-    origin+"/api/v4/pdp/get?shop_id="+ids.shopId+"&item_id="+ids.itemId,
+    origin+"/api/v4/pdp/get?shop_id="+ids.shopId+"&item_id="+ids.itemId+"&productDetail_mode=FROM_CACHE_AND_CORRECTED",
+    origin+"/api/v4/pdp/get_pc?shop_id="+ids.shopId+"&item_id="+ids.itemId+"&productDetail_mode=FROM_CACHE_AND_CORRECTED",
+    origin+"/api/v2/item/get?shopid="+ids.shopId+"&itemid="+ids.itemId,
     origin+"/api/v4/item/get?shopid="+ids.shopId+"&itemid="+ids.itemId
   ];
   for(const endpoint of endpoints){
@@ -76,14 +92,14 @@ async function fetchShopeePublicApi(url:string){
       const json=await res.json();
       const root=json?.data||json;
       const item=root?.item||root?.item_basic||root;
-      const title=item?.title||item?.name||root?.name||"";
-      const description=item?.description||root?.description||"";
-      const imageKey=item?.image||item?.image_url||item?.imageUrl||(Array.isArray(item?.images)?item.images[0]:"")||(Array.isArray(root?.product_images?.images)?root.product_images.images[0]:"");
+      const title=item?.title||item?.product_name||item?.name||root?.title||root?.productName||root?.name||"";
+      const description=item?.description||item?.product_description||root?.description||"";
+      const imageKey=item?.image||item?.image_url||item?.imageUrl||item?.cover||(Array.isArray(item?.images)?item.images[0]:"")||(Array.isArray(item?.image_list)?item.image_list[0]:"")||(Array.isArray(root?.product_images?.images)?root.product_images.images[0]:"")||(Array.isArray(root?.item?.images)?root.item.images[0]:"");
       const priceRaw=item?.price??item?.price_min??item?.priceMin??root?.product_price?.price?.single_value??null;
       const image=shopeeImage(imageKey);
-      if(title||image)return{
-        name:clean(title),
-        image_url:image,
+      if(usableShopeeTitle(title)||usableShopeeImage(image))return{
+        name:usableShopeeTitle(title)?clean(title):"",
+        image_url:usableShopeeImage(image)?image:"",
         description:clean(description),
         price:shopeePrice(priceRaw),
         marketplace:"Shopee",
@@ -155,8 +171,8 @@ Deno.serve(async(req)=>{
     }catch{}
   }
   if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchMicrolink(parsed.href);result.source="microlink"}catch{}}
-  if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchDirect(parsed.href);result.source="direct"}catch{}}
-  if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchReader(parsed.href);result.source="reader"}catch{}}
+  if(!result?.data?.name&&!result?.data?.image_url){try{const candidate=await fetchDirect(parsed.href);if(usableName(candidate.data?.name)||usableImage(candidate.data?.image_url)){result=candidate;result.source="direct"}}catch{}}
+  if(!result?.data?.name&&!result?.data?.image_url){try{const candidate=await fetchReader(parsed.href);if(usableName(candidate.data?.name)||usableImage(candidate.data?.image_url)){result=candidate;result.source="reader"}}catch{}}
   const rawData=result?.data||{};
   const data={
     ...rawData,
