@@ -169,7 +169,7 @@ Deno.serve(async(req)=>{
       if(!result&&shopeeAppId&&shopeeSecret){try{result={data:await fetchShopeeOfficial(canonical),finalUrl:canonical,source:"shopee_official_api"}}catch{}}
     }catch{}
   }
-  if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchMicrolink(parsed.href);result.source="microlink"}catch{}}
+  if(!usefulData(result?.data)){try{const candidate=await fetchMicrolink(parsed.href);if(usefulData(candidate.data)){result=candidate;result.source="microlink"}}catch{}}
   if(!result?.data?.name&&!result?.data?.image_url){try{const candidate=await fetchDirect(parsed.href);if(usableName(candidate.data?.name)||usableImage(candidate.data?.image_url)){result=candidate;result.source="direct"}}catch{}}
   if(!result?.data?.name&&!result?.data?.image_url){try{const candidate=await fetchReader(parsed.href);if(usableName(candidate.data?.name)||usableImage(candidate.data?.image_url)){result=candidate;result.source="reader"}}catch{}}
   const rawData=result?.data||{};
