@@ -135,45 +135,7 @@ async function fetchDirect(url:string){
  if(!res.ok)throw new Error("HTTP "+res.status);const finalUrl=res.url||url,html=(await res.text()).slice(0,3000000);return{data:{...parseProduct(html,finalUrl),source_url:finalUrl},finalUrl}
 }
 async function fetchMicrolink(url:string){
- const fn=`async ({ page }) => {
-   await page.waitForTimeout(4500);
-   return await page.evaluate(() => {
-     const bad=(s) => {
-       const x=String(s||'').replace(/\\s+/g,' ').trim();
-       return !x || x.length<4 || x.length>220 ||
-         /^https?:\\/\\//i.test(x) ||
-         /shopee brasil|ofertas incríveis|melhores preços do mercado|compras on-line shopee|garantia shopee|ofertas relâmpago/i.test(x) ||
-         /__mobile__|exp_group|gads|utm_|sig=/i.test(x);
-     };
-     const pickText=(selectors) => {
-       for(const selector of selectors){
-         for(const el of [...document.querySelectorAll(selector)]){
-           const t=String(el.textContent||'').replace(/\\s+/g,' ').trim();
-           if(!bad(t)) return t;
-         }
-       }
-       return '';
-     };
-     const pickImage=() => {
-       const imgs=[...document.images].map(img=>({
-         src:img.currentSrc||img.src||img.getAttribute('data-src')||img.getAttribute('data-lazy-src')||'',
-         w:img.naturalWidth||Number(img.getAttribute('width'))||0,
-         h:img.naturalHeight||Number(img.getAttribute('height'))||0
-       })).filter(x=>/^https?:\\/\\//i.test(x.src));
-       imgs.sort((a,b)=>(b.w*b.h)-(a.w*a.h));
-       for(const x of imgs){
-         if(/logo|favicon|sprite|placeholder|avatar|shopee-mobile/i.test(x.src)) continue;
-         if(x.w>=180&&x.h>=180) return x.src;
-       }
-       return '';
-     };
-     return {
-       name:pickText(['h1','.product-title','.product-briefing h1','[class*="product"] h1','[class*="product"] [class*="title"]']),
-       description:pickText(['[class*="product"] [class*="description"]','[class*="detail"] [class*="description"]','[class*="description"]']),
-       image_url:pickImage()
-     };
-   });
- }\`;
+ const fn = "async ({ page }) => {\n  await page.waitForTimeout(4500);\n  return await page.evaluate(() => {\n    const bad=(s) => {\n      const x=String(s||'').replace(/\\\\s+/g,' ').trim();\n      return !x || x.length<4 || x.length>220 || /^https?:\\\\/\\\\//i.test(x) || /shopee brasil|ofertas incríveis|melhores preços do mercado|compras on-line shopee|garantia shopee|ofertas relâmpago/i.test(x) || /__mobile__|exp_group|gads|utm_|sig=/i.test(x);\n    };\n    const pickText=(selectors) => {\n      for(const selector of selectors){\n        for(const el of [...document.querySelectorAll(selector)]){\n          const t=String(el.textContent||'').replace(/\\\\s+/g,' ').trim();\n          if(!bad(t)) return t;\n        }\n      }\n      return '';\n    };\n    const pickImage=() => {\n      const imgs=[...document.images].map(img=>({src:img.currentSrc||img.src||img.getAttribute('data-src')||img.getAttribute('data-lazy-src')||'',w:img.naturalWidth||Number(img.getAttribute('width'))||0,h:img.naturalHeight||Number(img.getAttribute('height'))||0})).filter(x=>/^https?:\\\\/\\\\//i.test(x.src));\n      imgs.sort((a,b)=>(b.w*b.h)-(a.w*a.h));\n      for(const x of imgs){ if(/logo|favicon|sprite|placeholder|avatar|shopee-mobile/i.test(x.src)) continue; if(x.w>=180&&x.h>=180) return x.src; }\n      return '';\n    };\n    return {name:pickText(['h1','.product-title','.product-briefing h1','[class*=\"product\"] h1','[class*=\"product\"] [class*=\"title\"]']),description:pickText(['[class*=\"product\"] [class*=\"description\"]','[class*=\"detail\"] [class*=\"description\"]','[class*=\"description\"]']),image_url:pickImage()};\n  });\n}";
  const endpoint="https://api.microlink.io/?url="+encodeURIComponent(url)+"&meta=false&function="+encodeURIComponent(fn);
  const res=await fetch(endpoint,{headers:{"Accept":"application/json"}});
  if(!res.ok)throw new Error("Microlink HTTP "+res.status);
