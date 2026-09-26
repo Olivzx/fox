@@ -135,7 +135,7 @@ async function fetchDirect(url:string){
  if(!res.ok)throw new Error("HTTP "+res.status);const finalUrl=res.url||url,html=(await res.text()).slice(0,3000000);return{data:{...parseProduct(html,finalUrl),source_url:finalUrl},finalUrl}
 }
 async function fetchMicrolink(url:string){
- const fn=String.raw\`async ({ page }) => {
+ const fn=`async ({ page }) => {
    await page.waitForTimeout(4500);
    return await page.evaluate(() => {
      const bad=(s) => {
