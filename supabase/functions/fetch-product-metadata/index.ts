@@ -134,14 +134,18 @@ async function fetchDirect(url:string){
  const res=await fetch(url,{redirect:"follow",headers:{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36","Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language":"pt-BR,pt;q=0.9,en;q=0.8"}});
  if(!res.ok)throw new Error("HTTP "+res.status);const finalUrl=res.url||url,html=(await res.text()).slice(0,3000000);return{data:{...parseProduct(html,finalUrl),source_url:finalUrl},finalUrl}
 }
+function usefulData(data:any){return usableName(data?.name)||usableImage(data?.image_url)}
+
 async function fetchMicrolink(url:string){
- const fn = "async ({ page }) => {\n  await page.waitForTimeout(4500);\n  return await page.evaluate(() => {\n    const bad=(s) => {\n      const x=String(s||'').replace(/\\\\s+/g,' ').trim();\n      return !x || x.length<4 || x.length>220 || /^https?:\\\\/\\\\//i.test(x) || /shopee brasil|ofertas incríveis|melhores preços do mercado|compras on-line shopee|garantia shopee|ofertas relâmpago/i.test(x) || /__mobile__|exp_group|gads|utm_|sig=/i.test(x);\n    };\n    const pickText=(selectors) => {\n      for(const selector of selectors){\n        for(const el of [...document.querySelectorAll(selector)]){\n          const t=String(el.textContent||'').replace(/\\\\s+/g,' ').trim();\n          if(!bad(t)) return t;\n        }\n      }\n      return '';\n    };\n    const pickImage=() => {\n      const imgs=[...document.images].map(img=>({src:img.currentSrc||img.src||img.getAttribute('data-src')||img.getAttribute('data-lazy-src')||'',w:img.naturalWidth||Number(img.getAttribute('width'))||0,h:img.naturalHeight||Number(img.getAttribute('height'))||0})).filter(x=>/^https?:\\\\/\\\\//i.test(x.src));\n      imgs.sort((a,b)=>(b.w*b.h)-(a.w*a.h));\n      for(const x of imgs){ if(/logo|favicon|sprite|placeholder|avatar|shopee-mobile/i.test(x.src)) continue; if(x.w>=180&&x.h>=180) return x.src; }\n      return '';\n    };\n    return {name:pickText(['h1','.product-title','.product-briefing h1','[class*=\"product\"] h1','[class*=\"product\"] [class*=\"title\"]']),description:pickText(['[class*=\"product\"] [class*=\"description\"]','[class*=\"detail\"] [class*=\"description\"]','[class*=\"description\"]']),image_url:pickImage()};\n  });\n}";
+ const fn = "({ page }) => page.waitForTimeout(6000).then(() => page.content())";
  const endpoint="https://api.microlink.io/?url="+encodeURIComponent(url)+"&meta=false&function="+encodeURIComponent(fn);
  const res=await fetch(endpoint,{headers:{"Accept":"application/json"}});
  if(!res.ok)throw new Error("Microlink HTTP "+res.status);
  const json=await res.json();
- const value=json?.data?.function?.value||json?.data?.function||{};
- return{data:{name:clean(value?.name),image_url:value?.image_url?absolute(String(value.image_url),url):"",description:clean(value?.description),price:null,marketplace:detectMarketplace(url),source_url:url},finalUrl:url};
+ const html=typeof json?.data?.function?.value==="string"?json.data.function.value:"";
+ if(!html)throw new Error("Microlink não retornou HTML renderizado.");
+ const finalUrl=json?.data?.url||url;
+ return{data:parseRenderedHtml(html,finalUrl),finalUrl};
 }
 async function fetchReader(url:string){
  const res=await fetch("https://r.jina.ai/"+url,{headers:{"Accept":"application/json","X-Locale":"pt-BR"}});if(!res.ok)throw new Error("Reader HTTP "+res.status);
