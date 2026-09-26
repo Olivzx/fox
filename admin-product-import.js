@@ -23,7 +23,7 @@
       if(!session?.access_token) throw new Error('Sua sessão administrativa expirou. Entre novamente.');
       const res=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,'apikey':cfg.publishableKey},body:JSON.stringify({url:parsed.href})});
       const json=await res.json();
-      if(!res.ok||!json.ok) throw new Error(json.error||'Não foi possível obter os dados.');
+      if(!res.ok||!json.ok){ if(json.code==='SHOPEE_API_NOT_CONFIGURED') throw new Error('Para a Shopee, configure SHOPEE_APP_ID e SHOPEE_APP_SECRET no Supabase Edge Function Secrets.'); if(json.code==='SHOPEE_PRODUCT_NOT_FOUND') throw new Error('A Shopee encontrou o produto, mas ele não está disponível no catálogo de ofertas da sua conta de afiliado.'); throw new Error(json.error||'Não foi possível obter os dados.'); }
       const d=json.data||{};
       setValue(form,'#pname',d.name); setValue(form,'#pimage',d.image_url); setValue(form,'#pdesc',d.description);
       if(d.price!==null&&d.price!==undefined) setValue(form,'#pprice',d.price);
