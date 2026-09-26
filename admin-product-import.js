@@ -1,7 +1,7 @@
 (()=> {
   const cfg = window.FOX_SUPABASE || {};
   const api = (cfg.url || '') + '/functions/v1/fetch-product-metadata';
-  const esc = s => String(s ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const toast = (msg,error=false) => { const el=document.createElement('div'); el.className='admin-toast'+(error?' error':''); el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),3200); };
   async function getClient(){ if(window.__foxImportDb) return window.__foxImportDb; if(!window.supabase?.createClient) throw new Error('Supabase não carregou.'); window.__foxImportDb=window.supabase.createClient(cfg.url,cfg.publishableKey); return window.__foxImportDb; }
   function setValue(form,sel,val){ const el=form.querySelector(sel); if(el&&val!==null&&val!==undefined&&String(val)!=='') el.value=val; }
@@ -9,7 +9,7 @@
     let box=form.querySelector('.affiliate-preview');
     if(!box){ box=document.createElement('div'); box.className='affiliate-preview'; form.querySelector('#purl')?.closest('.field')?.appendChild(box); }
     const image=String(data.image_url||'');
-    box.innerHTML = '<div class="affiliate-preview-media">'+(image ? '<img src="'+esc(image)+'" alt="Prévia do produto" referrerpolicy="no-referrer" onerror="this.closest(\\'.affiliate-preview-media\\').classList.add(\\'no-image\\')">' : '<div class="affiliate-preview-placeholder">🖼️</div>')+'</div><div class="affiliate-preview-copy"><strong>'+esc(data.name||'Produto detectado')+'</strong><span>'+esc(data.marketplace||'Marketplace detectado')+(data.price!==null&&data.price!==undefined ? ' · R$ '+Number(data.price).toFixed(2).replace('.',',') : '')+'</span></div>';
+    box.innerHTML = '<div class="affiliate-preview-media">'+(image ? '<img src="'+esc(image)+'" alt="Prévia do produto" referrerpolicy="no-referrer" onerror="this.closest(\'.affiliate-preview-media\').classList.add(\'no-image\')">' : '<div class="affiliate-preview-placeholder">🖼️</div>')+'</div><div class="affiliate-preview-copy"><strong>'+esc(data.name||'Produto detectado')+'</strong><span>'+esc(data.marketplace||'Marketplace detectado')+(data.price!==null&&data.price!==undefined ? ' · R$ '+Number(data.price).toFixed(2).replace('.',',') : '')+'</span></div>';
   }
   async function importProduct(form){
     const url=form.querySelector('#purl');
@@ -35,7 +35,7 @@
       if(!note){ note=document.createElement('div'); note.className='affiliate-import-note'; form.querySelector('#purl')?.closest('.field')?.appendChild(note); }
       const hasCore=Boolean(d.name||d.image_url);
       note.innerHTML=hasCore ? '<span>✓ Produto identificado automaticamente</span><small>'+esc(d.marketplace||'Marketplace')+' · revise os campos antes de cadastrar.</small>' : '<span>⚠️ A loja não expôs os dados do produto.</span><small>Você pode preencher nome e imagem manualmente.</small>';
-      toast(hasCore?'Produto identificado. Confira nome e imagem.':'A loja bloqueou os dados completos.',!hasCore);
+      toast(hasCore?'Produto identificado. Confira nome e imagem.':'A loja não expôs os dados completos.',!hasCore);
     }catch(e){ toast(e.message||'Falha ao buscar o produto.',true); }
     finally{ button.disabled=false; button.textContent='↙ Preencher automaticamente'; }
   }
