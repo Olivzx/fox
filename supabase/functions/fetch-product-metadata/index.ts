@@ -12,6 +12,19 @@ const clean=(v:string|null|undefined)=>(v||"").replace(/\s+/g," ").trim();
 const absolute=(u:string,b:string)=>{try{return new URL(u,b).href}catch{return u}};
 const decodeHtml=(v:string)=>v.replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").trim();
 const detectMarketplace=(url:string)=>{try{const h=new URL(url).hostname.toLowerCase();if(h.includes("shopee"))return"Shopee";if(h.includes("mercadolivre")||h.includes("mercadolibre"))return"Mercado Livre";if(h.includes("amazon"))return"Amazon";if(h.includes("aliexpress"))return"AliExpress"}catch{}return"Outro"};
+function usableName(v:string|null|undefined){
+  const s=clean(v);
+  if(s.length<3||s.length>180)return false;
+  if(/^https?:\/\//i.test(s))return false;
+  if(/[?&=]|__mobile__|exp_group|gads|sig=|utm_/i.test(s))return false;
+  if(/^(buy and sell on mobile|best marketplace for you)$/i.test(s))return false;
+  const letters=(s.match(/[A-Za-zÀ-ÿ]/g)||[]).length;
+  return letters>=3 && letters/s.length>0.25;
+}
+function usableImage(v:string|null|undefined){
+  const s=clean(v);
+  return /^https?:\/\//i.test(s) && !/logo|favicon|sprite|placeholder|avatar/i.test(s);
+}
 
 function extractShopeeIds(url:string){
  const u=new URL(url);let m=u.pathname.match(/\/product\/(\d+)\/(\d+)/i);
@@ -50,7 +63,7 @@ function parseJsonLd(html:string,url:string){
 }
 function parseProduct(html:string,url:string){
  const ld=parseJsonLd(html,url),image=ld.image_url||findMeta(html,["og:image","og:image:url","og:image:secure_url","twitter:image","twitter:image:src","image"]),name=ld.name||findMeta(html,["og:title","twitter:title","title"])||clean(decodeHtml(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"")),description=ld.description||findMeta(html,["description","og:description","twitter:description"]);
- return{name,image_url:image?absolute(decodeHtml(String(image)),url):"",description,price:ld.price??null,currency:ld.currency||"BRL",marketplace:detectMarketplace(url),source_url:url}
+ return{name,image_url:usableImage(image)?absolute(decodeHtml(String(image)),url):"",description,price:ld.price??null,currency:ld.currency||"BRL",marketplace:detectMarketplace(url),source_url:url}
 }
 async function fetchDirect(url:string){
  const res=await fetch(url,{redirect:"follow",headers:{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36","Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language":"pt-BR,pt;q=0.9,en;q=0.8"}});
@@ -88,7 +101,13 @@ Deno.serve(async(req)=>{
   if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchMicrolink(parsed.href);result.source="microlink"}catch{}}
   if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchDirect(parsed.href);result.source="direct"}catch{}}
   if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchReader(parsed.href);result.source="reader"}catch{}}
-  const data=result?.data||{};if(!data.name&&!data.image_url)throw new Error("Não consegui ler o nome ou a imagem desse produto. A loja pode estar bloqueando automação ou exigindo acesso autenticado.");
+  const rawData=result?.data||{};
+  const data={
+    ...rawData,
+    name: usableName(rawData.name) ? clean(rawData.name) : "",
+    image_url: usableImage(rawData.image_url) ? rawData.image_url : ""
+  };
+  if(!data.name && !data.image_url)throw new Error("Não consegui identificar um nome ou uma imagem de produto válidos. A página pode estar protegida ou exigindo acesso autenticado.");
   return new Response(JSON.stringify({ok:true,data,source:result.source}),{headers:cors});
  }catch(e){return new Response(JSON.stringify({ok:false,error:e instanceof Error?e.message:"Não foi possível obter os dados."}),{status:422,headers:cors})}
 });
