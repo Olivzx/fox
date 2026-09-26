@@ -134,6 +134,18 @@ async function fetchDirect(url:string){
  const res=await fetch(url,{redirect:"follow",headers:{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36","Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language":"pt-BR,pt;q=0.9,en;q=0.8"}});
  if(!res.ok)throw new Error("HTTP "+res.status);const finalUrl=res.url||url,html=(await res.text()).slice(0,3000000);return{data:{...parseProduct(html,finalUrl),source_url:finalUrl},finalUrl}
 }
+function stripTags(v:string){return decodeHtml(v.replace(/<script[\s\S]*?<\/script>/gi,"").replace(/<style[\s\S]*?<\/style>/gi,"").replace(/<[^>]+>/g," ")).replace(/\s+/g," ").trim()}
+function parseRenderedHtml(html:string,url:string){
+ const base=parseProduct(html,url);
+ const h1s=[...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].map(m=>stripTags(m[1])).filter(usableName);
+ const titleNodes=[...html.matchAll(/<(?:h1|h2|h3)\b[^>]*(?:class|id|data-testid)=[^>]*(?:product|item|goods|name|title)[^>]*>([\s\S]*?)<\/(?:h1|h2|h3)>/gi)].map(m=>stripTags(m[1])).filter(usableName);
+ const name=h1s[0]||titleNodes[0]||"";
+ const imgs=[...html.matchAll(/<img\b([^>]*)>/gi)].map(m=>({src:attr(m[1],"src")||attr(m[1],"data-src")||attr(m[1],"data-lazy-src")||attr(m[1],"data-original"),width:Number(attr(m[1],"width"))||0,height:Number(attr(m[1],"height"))||0})).filter(x=>usableImage(x.src)&&!/logo|favicon|sprite|placeholder|avatar|shopee-mobile/i.test(x.src));
+ imgs.sort((a,b)=>(b.width*b.height)-(a.width*a.height));
+ const image=imgs[0]?.src||base.image_url||"";
+ const desc=[...html.matchAll(/<(?:div|section|p)\b([^>]*)>([\s\S]{30,3000}?)<\/(?:div|section|p)>/gi)].map(m=>stripTags(m[2])).filter(x=>x.length>=30&&!/shopee brasil|ofertas incríveis|melhores preços do mercado|garantia shopee|ofertas relâmpago/i.test(x));
+ return {...base,name,image_url:usableImage(image)?absolute(image,url):"",description:desc[0]||base.description};
+}
 function usefulData(data:any){return usableName(data?.name)||usableImage(data?.image_url)}
 
 async function fetchMicrolink(url:string){
