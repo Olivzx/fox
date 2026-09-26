@@ -40,7 +40,7 @@ function usableShopeeImage(value:string|null|undefined){
   if(/\/shopee\/shopee-mobile/i.test(s)) return false;
   return true;
 }
-\nfunction extractShopeeIds(url:string){
+function extractShopeeIds(url:string){
  const u=new URL(url);let m=u.pathname.match(/\/product\/(\d+)\/(\d+)/i);
  if(m)return{shopId:m[1],itemId:m[2]};
  m=u.pathname.match(/-i\.(\d+)\.(\d+)(?:\/|$)/i);if(m)return{shopId:m[1],itemId:m[2]};
