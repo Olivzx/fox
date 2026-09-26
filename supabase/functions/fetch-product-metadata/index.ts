@@ -45,6 +45,55 @@ async function fetchShopeeOfficial(url:string){
  const price=n.price??n.priceMin??n.priceMax??null;
  return{name:clean(n.productName),image_url:n.imageUrl?absolute(String(n.imageUrl),url):"",description:n.shopName?"Loja: "+clean(n.shopName):"",price:price!==null?Number(String(price).replace(",",".")):null,old_price:null,discount_percent:Number(n.priceDiscountRate||0),marketplace:"Shopee",source_url:n.productLink||url,affiliate_url:n.offerLink||""};
 }
+
+function shopeeImage(value:any){
+  if(Array.isArray(value)) value=value[0];
+  if(value&&typeof value==="object") value=value.url||value.image||value.imageUrl||value.file||"";
+  if(!value)return"";
+  const s=String(value);
+  if(/^https?:\/\//i.test(s))return s;
+  return "https://down-br.img.susercontent.com/file/"+s.replace(/^\/+/,"");
+}
+function shopeePrice(value:any){
+  if(value===null||value===undefined||value==="" )return null;
+  const n=Number(value);
+  if(!Number.isFinite(n))return null;
+  if(n===0)return 0;
+  return n>1000 ? n/100000 : n;
+}
+async function fetchShopeePublicApi(url:string){
+  const ids=extractShopeeIds(url);if(!ids)throw new Error("SHOPEE_URL_ID_NOT_FOUND");
+  const base=new URL(url);const origin=base.origin;
+  const headers={"User-Agent":"Mozilla/5.0","Accept":"application/json,text/plain,*/*","Accept-Language":"pt-BR,pt;q=0.9,en;q=0.8","Referer":origin+"/"};
+  const endpoints=[
+    origin+"/api/v4/pdp/get?shop_id="+ids.shopId+"&item_id="+ids.itemId,
+    origin+"/api/v4/item/get?shopid="+ids.shopId+"&itemid="+ids.itemId
+  ];
+  for(const endpoint of endpoints){
+    try{
+      const res=await fetch(endpoint,{headers});
+      if(!res.ok)continue;
+      const json=await res.json();
+      const root=json?.data||json;
+      const item=root?.item||root?.item_basic||root;
+      const title=item?.title||item?.name||root?.name||"";
+      const description=item?.description||root?.description||"";
+      const imageKey=item?.image||item?.image_url||item?.imageUrl||(Array.isArray(item?.images)?item.images[0]:"")||(Array.isArray(root?.product_images?.images)?root.product_images.images[0]:"");
+      const priceRaw=item?.price??item?.price_min??item?.priceMin??root?.product_price?.price?.single_value??null;
+      const image=shopeeImage(imageKey);
+      if(title||image)return{
+        name:clean(title),
+        image_url:image,
+        description:clean(description),
+        price:shopeePrice(priceRaw),
+        marketplace:"Shopee",
+        source_url:url
+      };
+    }catch{}
+  }
+  throw new Error("SHOPEE_PUBLIC_API_FAILED");
+}
+
 function attr(tag:string,name:string){const re=new RegExp(name+"\\s*=\\s*([\\\"'])(.*?)\\1","i");return re.exec(tag)?.[2]||""}
 function findMeta(html:string,names:string[]){for(const tag of html.match(/<meta\\b[^>]*>/gi)||[]){const key=(attr(tag,"property")||attr(tag,"name")||attr(tag,"itemprop")).toLowerCase(),value=decodeHtml(attr(tag,"content"));if(value&&names.includes(key))return value}return""}
 function firstProduct(v:any):any{
@@ -97,7 +146,14 @@ Deno.serve(async(req)=>{
   const body=await req.json();if(typeof body?.url!=="string")return new Response(JSON.stringify({error:"URL inválida."}),{status:400,headers:cors});
   const parsed=new URL(body.url);if(!["http:","https:"].includes(parsed.protocol))throw new Error("Protocolo inválido.");
   const marketplace=detectMarketplace(parsed.href);let result:any=null;
-  if(marketplace==="Shopee"&&shopeeAppId&&shopeeSecret){try{result={data:await fetchShopeeOfficial(parsed.href),finalUrl:parsed.href,source:"shopee_official_api"}}catch{}}
+  if(marketplace==="Shopee"){
+    try{
+      let canonical=parsed.href;
+      try{const resolved=await fetchDirect(parsed.href);canonical=resolved.finalUrl||parsed.href;result=resolved.data?.name&&resolved.data.name!== "Shopee Brasil | Ofertas incríveis. Melhores preços do mercado"?{...resolved,source:"direct"}:null;}catch{}
+      if(!result){try{result={data:await fetchShopeePublicApi(canonical),finalUrl:canonical,source:"shopee_public_api"}}catch{}}
+      if(!result&&shopeeAppId&&shopeeSecret){try{result={data:await fetchShopeeOfficial(canonical),finalUrl:canonical,source:"shopee_official_api"}}catch{}}
+    }catch{}
+  }
   if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchMicrolink(parsed.href);result.source="microlink"}catch{}}
   if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchDirect(parsed.href);result.source="direct"}catch{}}
   if(!result?.data?.name&&!result?.data?.image_url){try{result=await fetchReader(parsed.href);result.source="reader"}catch{}}
