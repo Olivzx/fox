@@ -6,7 +6,7 @@
   window.productTable = function(products, compact){
     if(!products?.length) return '<div class="empty-state">Nenhum produto encontrado.</div>';
     return `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Produto</th><th>Marketplace</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>${products.map(p=>`<tr>
-      <td><div class="product-admin-name"><img class="product-admin-thumb" src="${esc(p.image_url||'/favicon.svg')}" onerror="this.src='/favicon.svg'"><div><strong>${esc(p.name)}</strong><small>${esc(p.categories?.name||'Sem categoria')}</small></div></div></td>
+      <td><div class="product-admin-name"><img class="product-admin-thumb" src="${esc(((window.FOX_IMAGE_PROXY||((id)=>{const base=(window.FOX_SUPABASE||{}).url||'';return base+'/functions/v1/serve-product-image?product='+encodeURIComponent(id)}))(p.id)))}" data-original-image="${esc(p.image_url||'')}" onerror="this.src='/favicon.svg'"><div><strong>${esc(p.name)}</strong><small>${esc(p.categories?.name||'Sem categoria')}</small></div></div></td>
       <td>${esc(p.marketplaces?.name||'—')}</td>
       <td><strong>${money(p.price)}</strong>${p.old_price?`<small style="display:block;color:var(--muted);text-decoration:line-through">${money(p.old_price)}</small>`:''}</td>
       <td><span class="status-pill ${p.is_active?'active':'archived'}">${p.is_active?'● Ativo':'○ Arquivado'}</span>${p.is_featured?'<small style="display:block;color:#ff963f;margin-top:4px">★ Destaque</small>':''}</td>
