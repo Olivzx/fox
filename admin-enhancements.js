@@ -334,7 +334,7 @@
 
     wrap.querySelector('#testImageUrl').onclick=()=>{
       const url=urlInput.value.trim();
-      if(!/^https?:\\/\\//i.test(url))return toast('Cole uma URL http(s) válida.',true);
+      if(!/^https?:\/\//i.test(url))return toast('Cole uma URL http(s) válida.',true);
       showPreview(url,'Testando link...');
       setSource('url');
     };
