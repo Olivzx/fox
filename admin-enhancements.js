@@ -185,6 +185,11 @@
   if(typeof productForm!=='function')return;
 
   const escImg=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const imageProxy=id=>{
+    const base=window.FOX_SUPABASE?.url||'';
+    return base+'/functions/v1/serve-product-image?product='+encodeURIComponent(id);
+  };
+  window.FOX_IMAGE_PROXY=imageProxy;
 
   function getDb(){
     try{return typeof db!=='undefined'?db:null}catch{return null}
@@ -275,7 +280,7 @@
           '<div class="image-preview-card">'+
             '<div class="image-preview-top"><div><strong>Pré-visualização</strong><small id="imagePreviewStatus">'+(p.image_url?'Imagem atual':'Nenhuma imagem selecionada')+'</small></div><span class="image-status-dot" id="imageStatusDot"></span></div>'+
             '<div class="image-preview-stage" id="imagePreviewStage">'+
-              (p.image_url?'<img src="'+escImg(p.image_url)+'" alt="Pré-visualização" id="imagePreviewImg" referrerpolicy="no-referrer"><div class="image-preview-fallback" hidden>🖼️<strong>Não foi possível visualizar esse link.</strong><small>Tente outro link ou use o upload do computador.</small></div>':'<div class="image-preview-empty">🖼️<strong>A imagem aparecerá aqui</strong><small>Faça upload ou teste um link.</small></div>')+
+              (p.image_url?'<img src="'+escImg(id?imageProxy(id):p.image_url)+'" alt="Pré-visualização" id="imagePreviewImg" referrerpolicy="no-referrer"><div class="image-preview-fallback" hidden>🖼️<strong>Não foi possível visualizar esse link.</strong><small>Tente outro link ou use o upload do computador.</small></div>':'<div class="image-preview-empty">🖼️<strong>A imagem aparecerá aqui</strong><small>Faça upload ou teste um link.</small></div>')+
             '</div>'+
           '</div>'+
           '<div class="product-data-grid">'+
