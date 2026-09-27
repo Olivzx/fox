@@ -179,3 +179,220 @@
   observer.observe(adminApp,{childList:true,subtree:true});
   setTimeout(sync,0);
 })();
+
+/* Image editor: local upload + remote image URL, using Supabase Storage as the final source. */
+(function installImageEditor(){
+  if(typeof productForm!=='function')return;
+
+  const escImg=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function getDb(){
+    try{return typeof db!=='undefined'?db:null}catch{return null}
+  }
+
+  function isFoxStorageUrl(url){
+    return typeof url==='string'&&url.includes('.supabase.co/storage/v1/object/public/product-images/');
+  }
+
+  async function importRemoteImage(url){
+    const client=getDb();
+    if(!client)throw new Error('Supabase não configurado.');
+    const {data:{session}}=await client.auth.getSession();
+    if(!session?.access_token)throw new Error('Sua sessão administrativa expirou. Entre novamente.');
+    const base=window.FOX_SUPABASE?.url;
+    const response=await fetch(base+'/functions/v1/import-product-image',{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+session.access_token,
+        'Content-Type':'application/json',
+        'apikey':window.FOX_SUPABASE?.publishableKey||''
+      },
+      body:JSON.stringify({url})
+    });
+    let data={};
+    try{data=await response.json()}catch{}
+    if(!response.ok||!data.publicUrl)throw new Error(data.error||'Não foi possível importar a imagem.');
+    return data.publicUrl;
+  }
+
+  async function uploadLocalImage(file){
+    const client=getDb();
+    if(!client)throw new Error('Supabase não configurado.');
+    if(!file)throw new Error('Selecione uma imagem.');
+    if(file.size>15*1024*1024)throw new Error('A imagem deve ter no máximo 15 MB.');
+    const valid=file.type.startsWith('image/')||/\.(avif|webp|svg|png|jpe?g|gif|bmp|ico|tiff?|heic|heif)$/i.test(file.name);
+    if(!valid)throw new Error('Selecione um arquivo de imagem válido.');
+    const ext=(file.name.split('.').pop()||'img').toLowerCase().replace(/[^a-z0-9]/g,'')||'img';
+    const path='products/'+crypto.randomUUID()+'.'+ext;
+    const {error}=await client.storage.from('product-images').upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
+    if(error)throw new Error('Não foi possível enviar a imagem: '+error.message);
+    const {data}=client.storage.from('product-images').getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  window.productForm=async function(id=null){
+    const client=getDb();
+    if(!client)return toast('Supabase não configurado.',true);
+
+    const [{data:cats},{data:markets},{data:existing}]=await Promise.all([
+      client.from('categories').select('id,name').eq('is_active',true).order('name'),
+      client.from('marketplaces').select('id,name').eq('is_active',true).order('name'),
+      id?client.from('products').select('*').eq('id',id).single():Promise.resolve({data:null})
+    ]);
+    const p=existing||{};
+    let imageSource=p.image_url?'url':'file';
+    let objectUrl=null;
+
+    const wrap=document.createElement('div');
+    wrap.className='image-editor-backdrop';
+    wrap.innerHTML=
+      '<section class="image-editor" role="dialog" aria-modal="true" aria-labelledby="imageEditorTitle">'+
+        '<div class="image-editor-head">'+
+          '<div><span class="image-editor-kicker">CATÁLOGO · IMAGEM</span><h2 id="imageEditorTitle">'+(id?'Editar produto':'Novo produto')+'</h2><p>Escolha uma imagem do computador ou cole o endereço direto da imagem.</p></div>'+
+          '<button class="image-editor-close" type="button" aria-label="Fechar">×</button>'+
+        '</div>'+
+        '<form id="productImageForm" class="image-editor-body">'+
+          '<div class="image-product-summary">'+
+            '<div class="image-mini-fox">🦊</div>'+
+            '<div><strong>Imagem da vitrine</strong><small>A imagem selecionada será salva no Supabase para evitar links externos quebrados.</small></div>'+
+          '</div>'+
+          '<div class="image-source-tabs">'+
+            '<button type="button" class="image-source-tab '+(imageSource==='file'?'active':'')+'" data-source="file">↥ Do computador</button>'+
+            '<button type="button" class="image-source-tab '+(imageSource==='url'?'active':'')+'" data-source="url">↗ Por link</button>'+
+          '</div>'+
+          '<div class="image-source-pane '+(imageSource==='file'?'active':'')+'" data-pane="file">'+
+            '<label class="image-dropzone" id="imageDropzone">'+
+              '<input id="imageFileNew" type="file" accept="image/*,.avif,.webp,.svg,.png,.jpg,.jpeg,.gif,.bmp,.ico,.tif,.tiff,.heic,.heif">'+
+              '<span class="drop-icon">↥</span>'+
+              '<strong>Escolher imagem do computador</strong>'+
+              '<small>PNG, JPG, JPEG, WEBP, AVIF, GIF, SVG e outros formatos de imagem · até 15 MB</small>'+
+            '</label>'+
+          '</div>'+
+          '<div class="image-source-pane '+(imageSource==='url'?'active':'')+'" data-pane="url">'+
+            '<div class="image-url-row"><input id="imageUrlNew" type="url" value="'+escImg(p.image_url||'')+'" placeholder="https://site.com/imagem.jpg" autocomplete="off"><button type="button" class="table-action" id="testImageUrl">Testar link</button></div>'+
+            '<small class="image-help">Cole o link direto da imagem. Links de páginas de produtos, como uma URL comum da Shopee, não são imagens.</small>'+
+          '</div>'+
+          '<div class="image-preview-card">'+
+            '<div class="image-preview-top"><div><strong>Pré-visualização</strong><small id="imagePreviewStatus">'+(p.image_url?'Imagem atual':'Nenhuma imagem selecionada')+'</small></div><span class="image-status-dot" id="imageStatusDot"></span></div>'+
+            '<div class="image-preview-stage" id="imagePreviewStage">'+
+              (p.image_url?'<img src="'+escImg(p.image_url)+'" alt="Pré-visualização" id="imagePreviewImg" referrerpolicy="no-referrer"><div class="image-preview-fallback" hidden>🖼️<strong>Não foi possível visualizar esse link.</strong><small>Tente outro link ou use o upload do computador.</small></div>':'<div class="image-preview-empty">🖼️<strong>A imagem aparecerá aqui</strong><small>Faça upload ou teste um link.</small></div>')+
+            '</div>'+
+          '</div>'+
+          '<div class="product-data-grid">'+
+            '<div class="field"><label>Nome do produto</label><input id="pnameNew" value="'+escImg(p.name||'')+'" required maxlength="140"></div>'+
+            '<div class="field"><label>Marketplace</label><select id="pmarketNew" required>'+((markets||[]).map(m=>'<option value="'+m.id+'" '+(m.id===p.marketplace_id?'selected':'')+'>'+escImg(m.name)+'</option>').join(''))+'</select></div>'+
+            '<div class="field full"><label>Descrição</label><textarea id="pdescNew" rows="3" maxlength="1000">'+escImg(p.description||'')+'</textarea></div>'+
+            '<div class="field"><label>Categoria</label><select id="pcatNew" required>'+((cats||[]).map(c=>'<option value="'+c.id+'" '+(c.id===p.category_id?'selected':'')+'>'+escImg(c.name)+'</option>').join(''))+'</select></div>'+
+            '<div class="field"><label>Preço atual (R$)</label><input id="ppriceNew" type="number" min="0" step="0.01" value="'+(p.price??'')+'" required></div>'+
+            '<div class="field"><label>Preço anterior (R$)</label><input id="poldNew" type="number" min="0" step="0.01" value="'+(p.old_price??'')+'"></div>'+
+            '<div class="field"><label>Link de afiliado</label><input id="purlNew" type="url" value="'+escImg(p.affiliate_url||'')+'" required placeholder="https://..."></div>'+
+            '<div class="check-row full"><label><input id="pfeaturedNew" type="checkbox" '+(p.is_featured?'checked':'')+'> Destacar na vitrine</label><label><input id="pactiveNew" type="checkbox" '+(p.is_active!==false?'checked':'')+'> Produto ativo</label></div>'+
+          '</div>'+
+          '<div class="image-editor-actions"><button class="table-action" type="button" id="cancelImageEditor">Cancelar</button><button class="buy-mini" type="submit" id="saveImageProduct">'+(id?'Salvar alterações':'Cadastrar produto')+'</button></div>'+
+        '</form>'+
+      '</section>';
+
+    document.body.append(wrap);
+
+    const close=()=>{if(objectUrl)URL.revokeObjectURL(objectUrl);wrap.remove()};
+    const fileInput=wrap.querySelector('#imageFileNew');
+    const urlInput=wrap.querySelector('#imageUrlNew');
+    const previewStage=wrap.querySelector('#imagePreviewStage');
+    const status=wrap.querySelector('#imagePreviewStatus');
+    const dot=wrap.querySelector('#imageStatusDot');
+
+    function setSource(src){
+      imageSource=src;
+      wrap.querySelectorAll('.image-source-tab').forEach(b=>b.classList.toggle('active',b.dataset.source===src));
+      wrap.querySelectorAll('.image-source-pane').forEach(pane=>pane.classList.toggle('active',pane.dataset.pane===src));
+    }
+
+    function showFallback(message){
+      previewStage.innerHTML='<div class="image-preview-fallback">🖼️<strong>Imagem indisponível na prévia</strong><small>'+escImg(message||'Tente outro link ou use o upload do computador.')+'</small></div>';
+      status.textContent='Prévia indisponível';
+      dot.classList.remove('ready');
+    }
+
+    function showPreview(src,label){
+      previewStage.innerHTML='<img src="'+escImg(src)+'" alt="Pré-visualização" id="imagePreviewImg" referrerpolicy="no-referrer"><div class="image-preview-fallback" hidden>🖼️</div>';
+      const img=previewStage.querySelector('#imagePreviewImg');
+      img.onload=()=>{status.textContent=label||'Imagem pronta';dot.classList.add('ready')};
+      img.onerror=()=>showFallback('O navegador não conseguiu abrir essa imagem.');
+      status.textContent=label||'Carregando prévia...';
+    }
+
+    wrap.querySelectorAll('.image-source-tab').forEach(b=>b.onclick=()=>setSource(b.dataset.source));
+    fileInput.onchange=()=>{
+      const file=fileInput.files?.[0];
+      if(!file)return;
+      if(objectUrl)URL.revokeObjectURL(objectUrl);
+      objectUrl=URL.createObjectURL(file);
+      status.textContent=file.name;
+      dot.classList.remove('ready');
+      showPreview(objectUrl,'Arquivo selecionado');
+    };
+
+    wrap.querySelector('#testImageUrl').onclick=()=>{
+      const url=urlInput.value.trim();
+      if(!/^https?:\\/\\//i.test(url))return toast('Cole uma URL http(s) válida.',true);
+      showPreview(url,'Testando link...');
+      setSource('url');
+    };
+
+    wrap.querySelector('.image-editor-close').onclick=close;
+    wrap.querySelector('#cancelImageEditor').onclick=close;
+    wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+
+    wrap.querySelector('#productImageForm').onsubmit=async e=>{
+      e.preventDefault();
+      const save=wrap.querySelector('#saveImageProduct');
+      save.disabled=true;
+      save.textContent='Salvando...';
+
+      try{
+        const name=wrap.querySelector('#pnameNew').value.trim();
+        const price=Number(wrap.querySelector('#ppriceNew').value);
+        const old=Number(wrap.querySelector('#poldNew').value)||null;
+        if(!name||!Number.isFinite(price)||price<0)throw new Error('Preencha nome e preço corretamente.');
+
+        let imageUrl=(urlInput.value||'').trim()||null;
+        const localFile=fileInput.files?.[0];
+
+        if(imageSource==='file'){
+          if(!localFile&&!isFoxStorageUrl(imageUrl||''))throw new Error('Selecione uma imagem do computador.');
+          if(localFile)imageUrl=await uploadLocalImage(localFile);
+        }else{
+          if(!imageUrl)throw new Error('Cole o link direto da imagem.');
+          if(!isFoxStorageUrl(imageUrl))imageUrl=await importRemoteImage(imageUrl);
+        }
+
+        const slug=p.slug||name.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^\u0000-\u007F]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/(^-|-$)/g,'')||crypto.randomUUID();
+        const payload={
+          name,
+          slug,
+          description:wrap.querySelector('#pdescNew').value.trim()||null,
+          image_url:imageUrl,
+          price,
+          old_price:old,
+          discount_percent:old?Math.max(0,Math.round((1-price/old)*100)):0,
+          affiliate_url:wrap.querySelector('#purlNew').value.trim(),
+          category_id:wrap.querySelector('#pcatNew').value,
+          marketplace_id:wrap.querySelector('#pmarketNew').value,
+          is_featured:wrap.querySelector('#pfeaturedNew').checked,
+          is_active:wrap.querySelector('#pactiveNew').checked
+        };
+
+        const result=id?await client.from('products').update(payload).eq('id',id):await client.from('products').insert(payload);
+        if(result.error)throw new Error(result.error.code==='23505'?'Já existe um produto com esse slug/nome.':'Não foi possível salvar o produto.');
+        toast(id?'Produto atualizado.':'Produto cadastrado.');
+        close();
+        await dashboard(currentAdmin.display_name,'products');
+      }catch(err){
+        console.error(err);
+        toast(err.message||'Não foi possível salvar a imagem.',true);
+        save.disabled=false;
+        save.textContent=id?'Salvar alterações':'Cadastrar produto';
+      }
+    };
+  };
+})();
